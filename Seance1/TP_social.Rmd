@@ -1,0 +1,251 @@
+---
+title: "TP_social"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercice 1 - Importation des données
+
+```{r cars}
+library(Amelia)
+library(dplyr)
+library(ggplot2) # Pour les graphiques
+library(purrr)
+data <- read.csv("path to Intergeneration.csv",sep=",") 
+head(data)
+```
+
+# Exercice 1 - Etude et traitement des données manquantes
+
+```{r}
+missmap(data, main = "Données manquantes")
+```
+
+# Exercice 2 - Statistique descriptive
+## a) Proportion d'homme et de femme dans la base de données
+
+```{r}
+data_pct <- data %>%
+  count(MA_SEXE) %>%                  # compter occurrences par catégorie
+  mutate(pct = n / sum(n) * 100)      # calculer le pourcentage
+
+ggplot(data_pct, aes(x = MA_SEXE, y = pct)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),   # afficher le % sur les barres
+            vjust = -0.5) +
+  labs(title = "Répartition par sexe (%)",
+       x = "Sexe",
+       y = "Pourcentage") +
+  theme_minimal() +
+  ylim(0, max(data_pct$pct) + 5)    # laisse de l’espace pour le texte
+```
+
+## b) Répartition des diplomes en % dans la base de données
+
+```{r}
+data_pct <- data %>%
+  count(MC_DIPLOME) %>%                  
+  mutate(pct = n / sum(n) * 100)        
+
+ggplot(data_pct, aes(x = MC_DIPLOME, y = pct)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            vjust = -0.5) +
+  labs(title = "Répartition des diplômes (%)",
+       x = "Diplôme",
+       y = "Pourcentage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +  # 🔹 texte vertical sur axe X
+  ylim(0, max(data_pct$pct) + 5)
+
+```
+
+## c) Répartition des catégories socioprofesionnelles (CSP) en % dans la base de données
+
+```{r}
+data_filtered <- data %>%
+  filter(!AH_CS8 %in% c("Non codé"))
+
+data_pct <- data_filtered %>%
+  count(AH_CS8) %>%                  
+  mutate(pct = n / sum(n) * 100)        
+
+ggplot(data_pct, aes(x = AH_CS8, y = pct)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            vjust = -0.5) +
+  labs(title = "Catégories SocioProfessionnelles (%)",
+       x = NULL,
+       y = "Pourcentage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +  # 🔹 texte vertical sur axe X
+  ylim(0, max(data_pct$pct) + 5)
+
+
+```
+
+
+# Exercice 2 - Statistique descriptive bivarié
+
+## a) Composition des CSP par diplôme
+
+```{r}
+data_ex <- na.omit(data[,c("MC_DIPLOME","AH_CS8")])
+data_filtered <- data_ex %>%
+  filter(!MC_DIPLOME %in% c("Aucun diplôme","Ne sait pas"))
+data_filtered <- data_filtered %>%
+  filter(!AH_CS8 %in% c("Non codé"))
+data_filtered %>%
+  count(MC_DIPLOME, AH_CS8) %>%
+  group_by(MC_DIPLOME) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = pct, y = MC_DIPLOME, fill = AH_CS8)) +
+  geom_col(position = "stack") +
+  labs(title = "Composition de CSP par niveau de diplôme (en %)",
+       y = "Diplôme", x = "Pourcentage",fill="CSP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),legend.position="bottom")
+```
+
+## b) Répartition des catégories socio-professionnelles actifs par sexe (%)
+
+```{r}
+data_filtered <- data %>%
+  filter(!AH_CS8 %in% c("Non codé", "Retraités"))
+ggplot(data_filtered, aes(x = MA_SEXE, fill = AH_CS8)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(title = "Répartition des catégories socio-professionnelles actifs par sexe (%)",
+       x = "Sexe",
+       y = "Pourcentage",
+       fill = "Catégorie socio-professionnelle") +
+  theme_minimal()
+```
+
+```{r}
+ncol(data)
+```
+
+
+## c) Répartition des diplômes par sexe
+
+```{r}
+data_clean <- na.omit(data_filtered)
+data_filtered <- data_clean %>%
+  filter(!CA_DIPLOME %in% c("Aucun diplôme","Ne sait pas"))
+ggplot(data_filtered, aes(x = MA_SEXE, fill = CA_DIPLOME)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(title = "Répartition des diplomés par sexe (%)",
+       x = "Sexe",
+       y = "Pourcentage",
+       fill = "Diplôme") +
+  theme_minimal()
+```
+
+# d) Education des enfants
+
+Pour tous les individus qui se chargent de l'éducation de leur enfant, montrer la répartition des CSP par genre
+
+```{r}
+data_ex <- na.omit(data[,c("OB_DEDUC","MC_DIPLOME","MA_SEXE")])
+data_sub <- data_ex[data_ex$OB_DEDUC=="Toujours moi",c("MC_DIPLOME","MA_SEXE")]
+data_filtered <- data_sub %>%
+  filter(!MC_DIPLOME %in% c("Aucun diplôme","Ne sait pas"))
+data_filtered %>%
+  count(MC_DIPLOME, MA_SEXE) %>%
+  group_by(MA_SEXE) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = MA_SEXE, y = pct, fill = MC_DIPLOME)) +
+  geom_col(position = "stack") +
+  labs(title = "Education des enfants",
+       y = "Pourcentage", x = NULL,fill="Diplome") +
+  theme()
+
+```
+
+# e) Répartition de l'éducation des enfants entre les hommes et les femmes par CSP
+
+```{r}
+data_ex <- na.omit(data[,c("OB_DEDUC","AH_CS8","MA_SEXE")])
+data_sub <- data_ex[data_ex$OB_DEDUC=="Toujours moi",c("AH_CS8","MA_SEXE")]
+data_filtered <- data_sub %>%
+  filter(!AH_CS8 %in% c("Aucun diplôme","Ne sait pas"))
+data_filtered %>%
+  count(AH_CS8, MA_SEXE) %>%
+  group_by(AH_CS8) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = pct, y = AH_CS8, fill = MA_SEXE)) +
+  geom_col(position = "stack") +
+  labs(title = "Education des enfants",
+       x = "Diplôme", y = "Pourcentage",fill="CSP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),legend.position = "bottom")
+```
+
+# e) Répartition entre les hommes et les femmes qui jouent avec leur enfant par CSP
+
+```{r}
+data_ex <- na.omit(data[,c("EA_JOUE","AH_CS8","MA_SEXE")])
+data_sub <- data_ex[data_ex$EA_JOUE=="Toujours moi",c("AH_CS8","MA_SEXE")]
+data_filtered <- data_sub %>%
+  filter(!AH_CS8 %in% c("Aucun diplôme","Ne sait pas"))
+data_filtered %>%
+  count(AH_CS8, MA_SEXE) %>%
+  group_by(AH_CS8) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = pct, y = AH_CS8, fill = MA_SEXE)) +
+  geom_col(position = "stack") +
+  labs(title = "Jouer avec les enfants",
+       x = "Diplôme", y = "Pourcentage",fill="CSP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),legend.position = "bottom")
+```
+
+# f) Répartition entre les hommes et les femmes qui aident leur enfant à faire leur devoir par CSP
+
+```{r}
+data_ex <- na.omit(data[,c("EA_AID","AH_CS8","MA_SEXE")])
+data_sub <- data_ex[data_ex$EA_AID=="Toujours moi",c("AH_CS8","MA_SEXE")]
+data_filtered <- data_sub %>%
+  filter(!AH_CS8 %in% c("Aucun diplôme","Ne sait pas"))
+data_filtered %>%
+  count(AH_CS8, MA_SEXE) %>%
+  group_by(AH_CS8) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = pct, y = AH_CS8, fill = MA_SEXE)) +
+  geom_col(position = "stack") +
+  labs(title = "Aider à faire leur devoirs",
+       x = "Diplôme", y = "Pourcentage",fill="CSP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),legend.position = "bottom")
+```
+
+# g) Répartition entre les hommes et les femmes qui emmenent/cherchent les enfants à l'école par CSP
+
+```{r}
+data_ex <- na.omit(data[,c("EA_EMM","AH_CS8","MA_SEXE")])
+data_sub <- data_ex[data_ex$EA_EMM=="Toujours moi",c("AH_CS8","MA_SEXE")]
+data_filtered <- data_sub %>%
+  filter(!AH_CS8 %in% c("Aucun diplôme","Ne sait pas"))
+data_filtered %>%
+  count(AH_CS8, MA_SEXE) %>%
+  group_by(AH_CS8) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = pct, y = AH_CS8, fill = MA_SEXE)) +
+  geom_col(position = "stack") +
+  labs(title = "Emmener/aller chercher à l'école",
+       x = "Diplôme", y = "Pourcentage",fill="CSP") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+| Axe d’étude                            | Variables clés                | Type d’analyse               |
+| -------------------------------------- | ----------------------------- | ---------------------------- |
+| Typologie globale                      | Toutes                        | AFM + CAH                    |
+
+
+
+
+
+
+
+

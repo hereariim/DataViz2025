@@ -1,0 +1,270 @@
+---
+title: "TP Demo"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercice 1 - Base de données 
+## a) Importation de la base de données
+
+Importation de la base de données mpg
+```{r}
+# install.packages("ggplot2")  # à faire une seule fois
+# install.packages("Amelia")
+# install.packages("tinytex")
+library(dplyr)
+library(Amelia)
+library(ggplot2)             # charger la librairie
+data(mpg)
+```
+Quelques lignes de la base de données
+```{r}
+head(mpg)
+```
+Le type des variables
+```{r}
+str(mpg)
+```
+**Court rappel de la description des variables**
+
+manufacturer : constructeur de la voiture
+model : modèle
+displ : cylindrée (L)
+year : année
+cyl : nombre de cylindres
+trans : type de transmission
+drv : type de traction (f avant, r arrière, 4 4 roues)
+cty : consommation ville (mpg)
+hwy : consommation route (mpg)
+fl : type de carburant
+class : catégorie de véhicule (suv, compact, etc.)
+
+## b) Renommer les variables
+
+```{r}
+
+mpg <- mpg %>%
+  mutate(drv = recode(drv,
+                      "4" = "4 roues",
+                      "f" = "traction avant",
+                      "r" = "traction arrière"))
+mpg <- mpg %>%
+  mutate(fl = recode(fl,
+                     "p" = "essence premium",
+                     "r" = "essence regular",
+                     "d" = "diesel",
+                     "e" = "ethanol",
+                     "c" = "CNG"))
+str(mpg)
+```
+
+# Exercice 2 - Données manquantes
+
+```{r}
+missmap(mpg, main = "Données manquantes")
+```
+
+# Exercice 3 - Statistique univarié : variable quantitative
+Il s'agit de montrer la distribution, la répartition, la tendance.
+## a) Visualiser le nombre de consommation sur autoroute
+```{r}
+ggplot(mpg) +
+  geom_histogram(aes(x=hwy),binwidth = 5, fill = "skyblue", color = "black") +
+  scale_x_continuous(breaks = seq(0,50,5)) +
+  labs(
+    title = "Répartition de la consommation sur autoroute (miles par gallon)",
+    x = "Consommation sur autoroute (miles par gallon)",
+    y = "Nombre de véhicule"
+  )
+```
+## b) Visualiser l'histogramme avec une courbe de densité
+```{r}
+ggplot(mpg) +
+  geom_density(aes(x=hwy),fill = "skyblue") +
+  labs(
+    title = "Répartition de la consommation sur autoroute (miles par gallon)",
+    x = "Consommation sur autoroute (miles par gallon)",
+    y = "Nombre de véhicule"
+  )
+```
+## c) Visualiser l'histogramme et la courbe de densité sur un même graphe
+```{r}
+# Largeur des classes pour histogramme
+binwidth <- 2
+
+# Histogramme avec densité sur axe secondaire
+ggplot(mpg, aes(x = hwy)) +
+  geom_histogram(aes(y = ..count..), binwidth = binwidth,
+                 fill = "lightblue", color = "black", alpha = 0.6) +
+  geom_density(aes(y = ..density.. * nrow(mpg) * binwidth), # conversion pour correspondre aux counts
+               color = "red", size = 1.2) +
+  scale_y_continuous(
+    name = "Nombre de véhicules",
+    sec.axis = sec_axis(~ . / (nrow(mpg) * binwidth), name = "Densité")
+  ) +
+  labs(title = "Nombre de véhicules et densité selon la consommation sur autoroute",
+       x = "Consommation sur autoroute (mpg)") +
+  theme_minimal()
+```
+## d) Boite à moustache : médiane, quartiles, valeurs extrêmes 
+```{r}
+ggplot(mpg) +
+  geom_boxplot(aes(x=hwy),color="red") + labs(
+    title = "Boite à moustache de la consommation sur autoroute",
+    x = NULL,
+    y = NULL
+  )
+
+ggplot(mpg) +
+  geom_boxplot(aes(x=hwy),color="red") +
+  scale_y_continuous(breaks = NULL) + labs(
+    title = "Boite à moustache de la consommation sur autoroute",
+    x = "Litres",
+    y = "Consommation"
+  )
+```
+
+# Exercice 4 - Statistique univarié : variable catégorielle nominal
+Il s'agit de montrer la fréquence ou la proportion de chaque catégorie.
+```{r}
+ggplot(mpg) +
+  geom_bar( aes(x = class),fill = "skyblue", color = "black") +
+  labs(title = "Répartition des types de véhicules",
+       x = "Catégorie de véhicule",
+       y = "Nombre de véhicule") +
+  theme_minimal()
+```
+
+# Exercice 5 - Statistique univarié : variable catégorielle ordinal
+Idem, il s'agit de montrer la fréquence ou la proportion de chaque catégorie **mais l'ordre doit être respecté.**
+
+La base mpg ne contient pas de variable catégorielle ordinal. On va créer une variable catégorielle à partir d'une variable quantitative. Ici, on prends la variable hwy qui donne le niveau de consommation (0,20,30,45) puis on crée une variable conso_cat qui donne des classes de consommation (faible, moyen, élevée).
+```{r}
+# Création d'une variable ordinale (catégories de consommation)
+mpg$conso_cat <- cut(
+  mpg$hwy,
+  breaks = c(0, 20, 30, 45),
+  labels = c("faible", "moyenne", "élevée"),
+  ordered_result = TRUE
+)
+
+mpg$conso_cat <- factor(mpg$conso_cat,
+                    levels = c("faible", "moyenne", "élevée"))
+
+# Diagramme en barres ordonné
+ggplot(mpg) +
+  geom_bar(aes(x = conso_cat),fill = "steelblue", color = "black") +
+  labs(title = "Distribution de la consommation sur autoroute (variable ordinale)",
+       x = "Niveau de consommation",
+       y = "Nombre de véhicules") +
+  theme_minimal()
+```
+
+# Exercice 6 - Statistique bivarié : quantitative et qualitative nominale
+
+```{r}
+ggplot(mpg) +
+  geom_boxplot(aes(x=class,y=hwy),color="black") +
+  labs(title = "Consommation sur autoroute selon le type de véhicule",
+       x = "Type de véhicule",
+       y = "Consommation en miles par gallon") +
+  theme_minimal()
+
+ggplot(mpg) +
+  geom_boxplot(aes(x = class, y = hwy, fill=class),color = "black") +
+  labs(title = "Consommation sur autoroute selon le type de véhicule",
+       x = "Type de véhicule",
+       y = "Consommation en miles par gallon") +
+  theme_minimal()
+```
+
+# Exercice 5 - Statistique bivarié : qualitative nominale x qualitative nominale
+
+```{r}
+ggplot(mpg)+
+  geom_count(aes(fl,drv)) +
+  labs(title = "Proportion des tractions selon le type de carburant",
+       subtitle = "Mauvais graphique : les proportions sont difficilement visibles",
+       x = "Type de carburant",
+       y = "Type de traction")
+```
+
+Bon graphique
+
+```{r}
+ggplot(mpg) +
+  geom_bar( aes(fl, fill=drv),position="fill") +
+  labs(
+    title = "Proportion des tractions selon le type de carburant",
+    y = "Nombre de véhicule (en proportion)",
+    x = "Type de carburant"
+  ) +
+  theme_minimal()
+
+ggplot(mpg) +
+  geom_bar(aes(fl, fill=drv)) +
+  labs(
+    title = "Proportion des tractions selon le type de carburant",
+    y = "Nombre de véhicule",
+    x = "Type de carburant"
+  ) +
+  theme_minimal()
+
+dodge <- position_dodge(width = 0.9)# Largeur du dodge pour aligner labels
+ggplot(mpg, aes(x = fl, fill = drv)) +
+  geom_bar(position = dodge) +
+  geom_text(stat = "count", aes(label = ..count..), 
+            position = dodge, vjust = -0.5) +
+  labs(
+    title = "Proportion des tractions selon le type de carburant",
+    y = "Nombre de véhicules",
+    x = "Type de carburant"
+  ) +
+  theme_minimal()
+```
+
+# Exercice 7 - Statistique bivarié : quantitative x quantitative
+
+```{r}
+ggplot(mpg)+
+  geom_point(aes(displ,cty)) +
+  labs(title = "Evolution de la consommation en ville par la taille de la cylindré",
+       x = "Consommation en ville",
+       y = "Taille de la cylindré")
+
+ggplot(mpg)+
+  geom_jitter(aes(displ,cty)) +
+  labs(title = "Evolution de la consommation en ville par la taille de la cylindré",
+       x = "Consommation en ville",
+       y = "Taille de la cylindré")
+
+ggplot(mpg,aes(displ,cty))+
+  geom_jitter() +
+  geom_smooth() +
+  labs(title = "Evolution de la consommation en ville par la taille de la cylindré",
+       x = "Consommation en ville",
+       y = "Taille de la cylindré")
+
+ggplot(mpg,aes(displ,cty))+
+  geom_jitter() +
+  geom_smooth(method="lm") +
+  labs(title = "Evolution de la consommation en ville par la taille de la cylindré",
+       x = "Consommation en ville",
+       y = "Taille de la cylindré")
+```
+
+# Exercice supplémentaire
+
+```{r}
+txhousing %>%
+  filter(city == "Austin") %>%
+  ggplot(aes(x= date, y= sales))+
+  geom_line() +
+  geom_smooth(se = FALSE)+
+  theme_classic()
+```

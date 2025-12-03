@@ -48,6 +48,6 @@ ggplot(occ, aes(x = TRANSPORTS1, y = Occurrences)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # rotation labels X
 ```
 
-## Séance 2 - Analyse exploratoire des données
+## Séance 3 - Analyse exploratoire des données
 
 Matériel du cours : [UABOX](https://uabox.univ-angers.fr/s/8MoEs3qs3CgkjZq)
